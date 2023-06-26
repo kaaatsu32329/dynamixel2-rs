@@ -24,6 +24,7 @@ mod log;
 
 pub mod checksum;
 pub mod instructions;
+pub mod control_table;
 
 mod bus;
 mod bytestuff;
