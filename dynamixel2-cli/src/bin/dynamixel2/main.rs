@@ -1,5 +1,4 @@
 use std::path::Path;
-use structopt::StructOpt;
 
 mod logging;
 mod options;
@@ -7,14 +6,13 @@ mod options;
 use options::{Command, MotorId, Options};
 
 fn main() {
-	let options = Options::from_args();
-	logging::init(env!("CARGO_CRATE_NAME"), options.verbose);
-	if let Err(()) = do_main(options) {
+	if let Err(()) = do_main(clap::Parser::parse()) {
 		std::process::exit(1);
 	}
 }
 
 fn do_main(options: Options) -> Result<(), ()> {
+	logging::init(module_path!(), options.verbose as i8);
 	match &options.command {
 		Command::Ping { motor_id } => {
 			let mut bus = open_bus(&options)?;
@@ -27,7 +25,7 @@ fn do_main(options: Options) -> Result<(), ()> {
 				MotorId::Broadcast => {
 					log::debug!("Scanning bus for connected motors");
 					bus.scan_cb(|response| match response {
-						Ok(response) => log_ping_response(&response),
+						Ok(response) => log::info!("{:?}", response),
 						Err(e) => log::warn!("Communication error: {}", e),
 					})
 					.map_err(|e| log::error!("Command failed: {}", e))?;
@@ -43,26 +41,31 @@ fn do_main(options: Options) -> Result<(), ()> {
 		Command::Read8 { motor_id, address } => {
 			let mut bus = open_bus(&options)?;
 			log::debug!("Reading an 8-bit value from motor {} at address {}", motor_id.raw(), address);
-			let value = bus
+			let response = bus
 				.read_u8(motor_id.assume_unicast()?, *address)
 				.map_err(|e| log::error!("Command failed: {}", e))?;
-			log::info!("Ok: {} (0x{:02X})", value, value);
+			log::info!("{:?} (0x{:02X})", response, response.data);
 		},
 		Command::Read16 { motor_id, address } => {
 			let mut bus = open_bus(&options)?;
 			log::debug!("Reading a 16-bit value from motor {} at address {}", motor_id.raw(), address);
-			let value = bus
+			let response = bus
 				.read_u16(motor_id.assume_unicast()?, *address)
 				.map_err(|e| log::error!("Command failed: {}", e))?;
-			log::info!("Ok: {} (0x{:04X})", value, value);
+			log::info!("{:?} (0x{:04X})", response, response.data);
 		},
 		Command::Read32 { motor_id, address } => {
 			let mut bus = open_bus(&options)?;
 			log::debug!("Reading a 32-bit value from motor {} at address {}", motor_id.raw(), address);
-			let value = bus
+			let response = bus
 				.read_u32(motor_id.assume_unicast()?, *address)
 				.map_err(|e| log::error!("Command failed: {}", e))?;
-			log::info!("Ok: {} (0x{:04X} {:04X})", value, (value >> 16) & 0xFFFF, value & 0xFFFF);
+			log::info!(
+				"{:?} (0x{:04X} {:04X})",
+				response,
+				(response.data >> 16) & 0xFFFF,
+				response.data & 0xFFFF
+			);
 		},
 		Command::Write8 { motor_id, address, value } => {
 			let mut bus = open_bus(&options)?;
@@ -73,9 +76,10 @@ fn do_main(options: Options) -> Result<(), ()> {
 				motor_id.raw(),
 				address
 			);
-			bus.write_u8(motor_id.raw(), *address, *value)
+			let response = bus
+				.write_u8(motor_id.raw(), *address, *value)
 				.map_err(|e| log::error!("Write failed: {}", e))?;
-			log::info!("Ok");
+			log::info!("Ok (Hardware error: {})", response.alert);
 		},
 		Command::Write16 { motor_id, address, value } => {
 			let mut bus = open_bus(&options)?;
@@ -86,9 +90,10 @@ fn do_main(options: Options) -> Result<(), ()> {
 				motor_id.raw(),
 				address
 			);
-			bus.write_u16(motor_id.raw(), *address, *value)
+			let response = bus
+				.write_u16(motor_id.raw(), *address, *value)
 				.map_err(|e| log::error!("Command failed: {}", e))?;
-			log::info!("Ok");
+			log::info!("Ok (Hardware error: {})", response.alert);
 		},
 		Command::Write32 { motor_id, address, value } => {
 			let mut bus = open_bus(&options)?;
@@ -100,9 +105,10 @@ fn do_main(options: Options) -> Result<(), ()> {
 				motor_id.raw(),
 				address
 			);
-			bus.write_u32(motor_id.raw(), *address, *value)
+			let response = bus
+				.write_u32(motor_id.raw(), *address, *value)
 				.map_err(|e| log::error!("Command failed: {}", e))?;
-			log::info!("Ok");
+			log::info!("Ok (Hardware error: {})", response.alert);
 		},
 		Command::ShellCompletion { shell, output } => {
 			write_shell_completion(*shell, output.as_deref())?;
@@ -129,11 +135,14 @@ fn log_ping_response(response: &dynamixel2::instructions::PingResponse) {
 	log::info!("Firmware: {}", response.firmware);
 }
 
-fn write_shell_completion(shell: structopt::clap::Shell, path: Option<&Path>) -> Result<(), ()> {
+fn write_shell_completion(shell: clap_complete::Shell, path: Option<&Path>) -> Result<(), ()> {
+	use clap::CommandFactory;
 	use std::io::Write;
+
 	let mut buffer = Vec::with_capacity(4 * 1024);
 
-	Options::clap().gen_completions_to(env!("CARGO_BIN_NAME"), shell, &mut buffer);
+	let mut command = Options::command();
+	clap_complete::generate(shell, &mut command, env!("CARGO_BIN_NAME"), &mut buffer);
 	if !buffer.ends_with(b"\n") {
 		buffer.push(b'\n');
 	}

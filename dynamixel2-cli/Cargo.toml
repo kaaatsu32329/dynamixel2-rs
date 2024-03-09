@@ -1,11 +1,7 @@
 [package]
 name = "dynamixel2-cli"
-version = "0.4.1"
+version = "0.7.0"
 license = "BSD-2-Clause"
-authors = [
-	"Maarten de Vries <maarten@de-vri.es>",
-	"RoboHouse <robohouse@robovalley.com>",
-]
 
 description = "dynamixel protocol 2.0 command line utility"
 keywords = ["dynamixel", "servo", "motor", "serial"]
@@ -13,11 +9,12 @@ categories = ["science::robotics"]
 repository = "https://github.com/robohouse-delft/dynamixel2-rs"
 readme = "README.md"
 
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-dynamixel2 = { version = "0.4.1", path = "..", features = ["log"] }
+clap = { version = "4.4.10", features = ["derive"] }
+clap_complete = "4.4.4"
+dynamixel2 = { version = "0.7.0", path = "..", features = ["log"] }
 env_logger = "0.10.0"
 log = "0.4.14"
-serial2 = "0.1.3"
-structopt = "0.3.21"
+serial2 = "0.2.10"

@@ -1,5 +1,29 @@
+v0.7.0 - 2023-12-17:
+  * Pass `Response<&[u8]>` to read callbacks instead of `Response<Vec<u8>>`.
+
+v0.6.1 - 2023-12-16:
+  * Add `StatusPacket::error_number()`.
+  * Add `MotorError::error_number()`.
+  * Add `MotorError::alert()`.
+  * Fix documentation fo `StatusPacket::alert()`.
+
+v0.6.0 - 2023-12-16:
+  * Fix amount of data read in `sync_read_u16` and `sync_read_u16_cb`.
+  * Do not return `Err()` when the `alert` bit is set in a status packet from a motor.
+  * Report the `alert` bit in the returned values from commands in a new `Response` struct.
+  * Pass original `BulkReadData` command to user callback in `bulk_read_cb()`.
+
+v0.5.1 - 2023-12-07:
+  * Parse all status messages when more than on has been read in a single `read()`.
+
+v0.5.0 - 2023-12-02:
+  * Update `serial2` to `v0.2`.
+
+v0.4.2 - 2023-12-02:
+  * Remove unused generic parameter from `sync_read_*` functions.
+
 v0.4.1 - 2022-12-12:
-  * FIx the instruction ID used by the bulk read/write commands.
+  * Fix the instruction ID used by the bulk read/write commands.
 
 v0.4.0 - 2022-12-12:
   * Use `Borrow` trait instead of `AsRef` in `Bus::bulk_write()`.

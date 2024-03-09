@@ -33,9 +33,37 @@ pub enum InvalidMessage {
 }
 
 /// An error reported by the motor.
-#[derive(Debug)]
 pub struct MotorError {
 	pub raw: u8,
+}
+
+impl MotorError {
+	/// The error number reported by the motor.
+	///
+	/// This is the lower 7 bits of the raw error field.
+	pub fn error_number(&self) -> u8 {
+		self.raw & !0x80
+	}
+
+	/// The alert bit from the error field of the response.
+	///
+	/// This is the 8th bit of the raw error field.
+	///
+	/// If this bit is set, you can normally check the "Hardware Error" register for more details.
+	/// Consult the manual of your motor for more information.
+	pub fn alert(&self) -> bool {
+		self.raw & 0x80 != 0
+	}
+}
+
+impl std::fmt::Debug for MotorError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("MotorError")
+			.field("error_number", &self.error_number())
+			.field("alert", &self.alert())
+			.finish()
+	}
+
 }
 
 /// The received message has an invalid header prefix.
@@ -82,7 +110,9 @@ pub struct InvalidParameterCount {
 
 impl MotorError {
 	pub fn check(raw: u8) -> Result<(), Self> {
-		if raw == 0 {
+		// Ignore the alert bit for this check.
+		// If the alert bit is set, the motor encountered an error, but the instruction was still executed.
+		if raw & !0x80 == 0 {
 			Ok(())
 		} else {
 			Err(Self { raw })
@@ -178,6 +208,42 @@ impl From<WriteError> for TransferError {
 impl From<ReadError> for TransferError {
 	fn from(other: ReadError) -> Self {
 		Self::ReadError(other)
+	}
+}
+
+impl From<InvalidMessage> for TransferError {
+	fn from(other: InvalidMessage) -> Self {
+		Self::ReadError(other.into())
+	}
+}
+
+impl From<InvalidHeaderPrefix> for TransferError {
+	fn from(other: InvalidHeaderPrefix) -> Self {
+		Self::ReadError(other.into())
+	}
+}
+
+impl From<InvalidChecksum> for TransferError {
+	fn from(other: InvalidChecksum) -> Self {
+		Self::ReadError(other.into())
+	}
+}
+
+impl From<InvalidPacketId> for TransferError {
+	fn from(other: InvalidPacketId) -> Self {
+		Self::ReadError(other.into())
+	}
+}
+
+impl From<InvalidInstruction> for TransferError {
+	fn from(other: InvalidInstruction) -> Self {
+		Self::ReadError(other.into())
+	}
+}
+
+impl From<InvalidParameterCount> for TransferError {
+	fn from(other: InvalidParameterCount) -> Self {
+		Self::ReadError(other.into())
 	}
 }
 
